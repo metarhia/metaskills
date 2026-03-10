@@ -1,2 +1,1 @@
-# Skills
-Metarhia skills
+# Skills for Metarhia techstack
