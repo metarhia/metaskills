@@ -48,12 +48,12 @@ Update `"version"` in `package.json` using StrReplace (not `npm version` — we 
 
 The changelog uses:
 
-- **Sections**: `## [Unreleased]` at top; `## [Version] - YYYY-MM-DD` for releases (date in ISO 8601).
-- **Order**: newest first; every version gets an entry.
-- **Types of changes**: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`. Group same-type changes under each.
-- **Entries**: bullet lists; past tense; capitalise first letter; human-readable, curated (no raw git diffs).
-- **Links**: footnote-style link block at bottom: `[unreleased]: ...`, `[version]: ...` (GitHub compare URLs).
-- **Principles**: changelog is for humans; omit empty sections; call out breaking changes and deprecations clearly.
+- **Sections**: `## [Unreleased]` at top; `## [Version] - YYYY-MM-DD` for releases (date in ISO 8601)
+- **Order**: newest first; every version gets an entry
+- **Types of changes**: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`. Group same-type changes under each
+- **Entries**: bullet lists; past tense; capitalise first letter; human-readable, curated (no raw git diffs)
+- **Links**: footnote-style link block at bottom: `[unreleased]: ...`, `[version]: ...` (GitHub compare URLs)
+- **Principles**: changelog is for humans; omit empty sections; call out breaking changes and deprecations clearly
 
 ### 3a: Detect changelog structure
 
