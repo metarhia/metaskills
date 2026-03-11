@@ -1,5 +1,11 @@
 # Metarhia Skills
 
+[![ci status](https://github.com/metarhia/Skills/workflows/Testing%20CI/badge.svg)](https://github.com/metarhia/Skills/actions?query=workflow%3A%22Testing+CI%22+branch%3Amain)
+[![snyk](https://snyk.io/test/github/metarhia/Skills/badge.svg)](https://snyk.io/test/github/metarhia/Skills)
+[![npm version](https://badge.fury.io/js/Skills.svg)](https://badge.fury.io/js/Skills)
+[![npm downloads/month](https://img.shields.io/npm/dm/Skills.svg)](https://www.npmjs.com/package/Skills)
+[![npm downloads](https://img.shields.io/npm/dt/Skills.svg)](https://www.npmjs.com/package/Skills)
+
 Agent skills for the [Metarhia](https://github.com/metarhia) tech stack: reusable instructions for AI assistants and IDEs (Cursor, WS Code, Claude Code, Windsurf, etc.) — code style, patterns, architecture, and domain knowledge.
 
 ## Installation
