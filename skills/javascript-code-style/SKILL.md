@@ -13,8 +13,8 @@ Use following conventions for JavaScript and TypeScript code.
   - eslint-config-metarhia
   - eslint, prettier
 - Add scripts in package.json if not added:
-  - "lint": "eslint . && prettier --check \"**/*.js\" \"**/*.json\" \"**/*.md\" \"**/*.ts\""
-  - "fix": "eslint . --fix && prettier --write \"**/*.js\" \"**/*.json\" \"**/*.md\" \"**/*.ts\""
+  - "lint": "eslint . && prettier --check \"**/\*.js\" \"**/_.json\" \"\*\*/_.md\" \"\*_/_.ts\""
+  - "fix": "eslint . --fix && prettier --write \"**/\*.js\" \"**/_.json\" \"\*\*/_.md\" \"\*_/_.ts\""
 - Before and after code analisys with AI run `npm run lint` and `npm t`
 - Use `npm run fix` if errors/warnings detected to auto-fix when possible
 
