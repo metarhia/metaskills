@@ -2,6 +2,8 @@
 
 ## [Unreleased][unreleased]
 
+- Fixed broken code examples in error-handling skill
+
 ## [1.0.5][] - 2026-08-06
 
 - Added skills: data-structures, metautil-data-structures

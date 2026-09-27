@@ -30,7 +30,7 @@ try {
   return data;
 } catch (error) {
   if (error.code === 'ECONNREFUSED') return fallback();
-  throw err;
+  throw error;
 }
 ```
 
@@ -75,8 +75,8 @@ const retry = async (fn, { attempts = 3, delay = 1000 } = {}) => {
   for (let i = 0; i < attempts; i++) {
     try {
       return await fn();
-    } catch (err) {
-      if (i === attempts - 1) throw err;
+    } catch (error) {
+      if (i === attempts - 1) throw error;
       await new Promise((r) => setTimeout(r, delay * (i + 1)));
     }
   }
@@ -105,10 +105,14 @@ Track connections and drain before exit:
 ```javascript
 const connections = new Map();
 
-server.on('connection', (conn) => {
-  const res = null;
-  connections.set(conn, res);
-  conn.on('close', () => connections.delete(conn));
+server.on('connection', (socket) => {
+  connections.set(socket, null);
+  socket.on('close', () => connections.delete(socket));
+});
+
+server.on('request', (req, res) => {
+  connections.set(req.socket, res);
+  res.on('finish', () => connections.set(req.socket, null));
 });
 
 const shutdown = () => {
@@ -116,9 +120,9 @@ const shutdown = () => {
     freeResources();
     process.exit(0);
   });
-  for (const [conn, res] of connections) {
+  for (const [socket, res] of connections) {
     if (res) res.end('Server shutting down');
-    conn.destroy();
+    else socket.destroy();
   }
 };
 
