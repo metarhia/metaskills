@@ -49,21 +49,24 @@ const ensureSkillLinks = (targetDir, dirs = {}) => {
   }
 
   const linkPath = path.join(parentPath, 'metaskills');
+  let wasStale = false;
   try {
     const stat = fs.lstatSync(linkPath);
-    if (stat.isSymbolicLink()) {
-      const resolved = path.resolve(parentPath, fs.readlinkSync(linkPath));
-      if (resolved === path.resolve(source)) {
-        return {
-          created: false,
-          message: `Already linked ${targetDir}`,
-        };
-      }
+    if (!stat.isSymbolicLink()) {
+      return {
+        created: false,
+        message: `${targetDir}/metaskills exists and is not a symlink; skip`,
+      };
     }
-    return {
-      created: false,
-      message: `${targetDir}/metaskills exists and is not a symlink; skip`,
-    };
+    const resolved = path.resolve(parentPath, fs.readlinkSync(linkPath));
+    if (resolved === path.resolve(source)) {
+      return {
+        created: false,
+        message: `Already linked ${targetDir}`,
+      };
+    }
+    fs.unlinkSync(linkPath);
+    wasStale = true;
   } catch (error) {
     if (error.code !== 'ENOENT') throw error;
   }
@@ -72,7 +75,9 @@ const ensureSkillLinks = (targetDir, dirs = {}) => {
   fs.symlinkSync(relativeTarget, linkPath, 'dir');
   return {
     created: true,
-    message: `Linked ${targetDir}/metaskills -> metaskills/skills`,
+    message: wasStale
+      ? `Relinked stale ${targetDir}/metaskills -> metaskills/skills`
+      : `Linked ${targetDir}/metaskills -> metaskills/skills`,
   };
 };
 

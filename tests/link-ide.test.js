@@ -56,3 +56,32 @@ test('ensureSkillLinks skips existing correct symlink', () => {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+test('ensureSkillLinks relinks a stale symlink to a new source', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'metaskills-'));
+  try {
+    const oldSource = path.join(tmp, 'old', 'skills');
+    const newSource = path.join(tmp, 'new', 'skills');
+    fs.mkdirSync(oldSource, { recursive: true });
+    fs.mkdirSync(newSource, { recursive: true });
+
+    const targetDir = '.cursor/skills';
+    ensureSkillLinks(targetDir, { root: tmp, source: oldSource });
+    const overrides = { root: tmp, source: newSource };
+    const result = ensureSkillLinks(targetDir, overrides);
+
+    assert.ok(result.created);
+    assert.ok(result.message.includes('Relinked stale'));
+
+    const linkPath = path.join(tmp, targetDir, 'metaskills');
+    const stat = fs.lstatSync(linkPath);
+    assert.ok(stat.isSymbolicLink());
+    const resolved = path.resolve(
+      path.dirname(linkPath),
+      fs.readlinkSync(linkPath),
+    );
+    assert.strictEqual(resolved, newSource);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
