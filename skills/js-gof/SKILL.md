@@ -407,7 +407,7 @@ class ArrayToQueueAdapter {
   }
 
   dequeue() {
-    return this.#array.pop();
+    return this.#array.shift();
   }
 
   get count() {
