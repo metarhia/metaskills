@@ -44,7 +44,7 @@ Skills live under `skills/<name>/SKILL.md`:
 - `js-data-structures` — JavaScript collections and structural patterns
 - `data-structures` — general data-structure guidance for agents
 - `metautil-data-structures` — metautil structures (list, queue, deque, trie, …)
-- `js-gof` — GoF creational and related patterns in JavaScript
+- `js-gof` — GoF creational, structural, and behavioral patterns in JavaScript
 - `error-handling` — error handling conventions
 - `npm-publish` — prepare an npm package for release
 

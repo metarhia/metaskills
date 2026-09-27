@@ -871,3 +871,283 @@ const accountService = createAccountService(context);
 console.log('Balance:', accountService.getBalance('ACC-001'));
 console.log('Transactions:', accountService.getTransactions('ACC-001'));
 ```
+
+## Behavioral patterns
+
+### Chain of Responsibility
+
+Passes a request along a chain of handlers until one of them handles it, decoupling sender from receiver; common as request middleware.
+
+Refs: https://github.com/HowProgrammingWorks/ChainOfResponsibility
+
+```javascript
+const handlers = [
+  (req, next) => (req.role === 'admin' ? 'approved' : next()),
+  (req, next) => (req.amount < 1000 ? 'approved' : next()),
+  () => 'escalated',
+];
+
+const process = (req, index = 0) =>
+  handlers[index](req, () => process(req, index + 1));
+
+process({ role: 'user', amount: 500 }); // 'approved'
+```
+
+### Command
+
+Encapsulates an action and its parameters as an object, allowing queuing, logging, and undo.
+
+Refs: https://github.com/HowProgrammingWorks/Command
+
+```javascript
+const createCommand = (execute, undo) => ({ execute, undo });
+
+const addItem = (cart, item) =>
+  createCommand(
+    () => cart.push(item),
+    () => cart.pop(),
+  );
+
+const history = [];
+const run = (command) => {
+  command.execute();
+  history.push(command);
+};
+
+const undoLast = () => history.pop()?.undo();
+```
+
+### Interpreter
+
+Defines a grammar and evaluates sentences in it; useful for small DSLs and expression evaluators.
+
+Refs: https://github.com/HowProgrammingWorks/Interpreter
+
+```javascript
+const evaluate = (node) => {
+  if (typeof node === 'number') return node;
+  const [operator, left, right] = node;
+  const a = evaluate(left);
+  const b = evaluate(right);
+  if (operator === '+') return a + b;
+  if (operator === '*') return a * b;
+  throw new Error(`Unknown operator: ${operator}`);
+};
+
+evaluate(['+', 2, ['*', 3, 4]]); // 14
+```
+
+### Iterator
+
+Provides sequential access to elements of a collection without exposing its internal representation; implement natively via `Symbol.iterator`.
+
+Refs: https://github.com/HowProgrammingWorks/Iterator
+
+```javascript
+class Range {
+  constructor(start, end) {
+    this.start = start;
+    this.end = end;
+  }
+
+  *[Symbol.iterator]() {
+    for (let i = this.start; i <= this.end; i++) yield i;
+  }
+}
+
+for (const n of new Range(1, 3)) console.log(n); // 1 2 3
+```
+
+### Mediator
+
+Centralizes communication between components so they reference the mediator instead of each other, reducing coupling.
+
+Refs: https://github.com/HowProgrammingWorks/Mediator
+
+```javascript
+class ChatRoom {
+  #users = new Set();
+
+  join(user) {
+    this.#users.add(user);
+    user.room = this;
+  }
+
+  send(from, message) {
+    for (const user of this.#users) {
+      if (user !== from) user.receive(from.name, message);
+    }
+  }
+}
+
+class User {
+  constructor(name) {
+    this.name = name;
+    this.room = null;
+  }
+
+  send(message) {
+    this.room.send(this, message);
+  }
+
+  receive(from, message) {
+    console.log(`${from} -> ${this.name}: ${message}`);
+  }
+}
+```
+
+### Memento
+
+Captures and restores an object's internal state without violating encapsulation, e.g., undo/redo.
+
+Refs: https://github.com/HowProgrammingWorks/Memento
+
+```javascript
+class Editor {
+  #text = '';
+
+  type(text) {
+    this.#text += text;
+  }
+
+  save() {
+    return { text: this.#text };
+  }
+
+  restore(memento) {
+    this.#text = memento.text;
+  }
+
+  get text() {
+    return this.#text;
+  }
+}
+
+const editor = new Editor();
+editor.type('Hello');
+const snapshot = editor.save();
+editor.type(', world');
+editor.restore(snapshot);
+console.log(editor.text); // 'Hello'
+```
+
+### Observer
+
+Notifies subscribers about state changes without coupling the subject to concrete listeners; implement natively via `EventEmitter` (Node.js) or `EventTarget` (platform-agnostic).
+
+Refs: https://github.com/HowProgrammingWorks/Observer
+
+```javascript
+const { EventEmitter } = require('node:events');
+
+const orders = new EventEmitter();
+orders.on('created', (order) => console.log('Notify:', order.id));
+orders.emit('created', { id: 42 });
+```
+
+```javascript
+class Stock extends EventTarget {
+  setPrice(price) {
+    this.price = price;
+    this.dispatchEvent(new CustomEvent('change', { detail: price }));
+  }
+}
+
+const stock = new Stock();
+stock.addEventListener('change', (event) => {
+  console.log('Price:', event.detail);
+});
+stock.setPrice(105.2);
+```
+
+### State
+
+Changes an object's behavior when its internal state changes, replacing large conditionals with per-state transition tables.
+
+Refs: https://github.com/HowProgrammingWorks/State
+
+```javascript
+const transitions = {
+  pending: { pay: 'paid', cancel: 'cancelled' },
+  paid: { ship: 'shipped' },
+  shipped: {},
+  cancelled: {},
+};
+
+class Order {
+  #state = 'pending';
+
+  transition(action) {
+    const next = transitions[this.#state][action];
+    if (next) this.#state = next;
+    return this.#state;
+  }
+}
+```
+
+### Strategy
+
+Selects an algorithm at runtime from a family of interchangeable behaviors; in JavaScript, plain functions or an object/Map lookup.
+
+Refs: https://github.com/HowProgrammingWorks/Strategy
+
+```javascript
+const strategies = {
+  asc: (a, b) => a - b,
+  desc: (a, b) => b - a,
+};
+
+const sortBy = (array, strategy) => [...array].sort(strategies[strategy]);
+
+sortBy([3, 1, 2], 'asc'); // [1, 2, 3]
+```
+
+### Template Method
+
+Defines the skeleton of an algorithm in a base method, deferring specific steps to overrides.
+
+Refs: https://github.com/HowProgrammingWorks/TemplateMethod
+
+```javascript
+class Report {
+  generate() {
+    const data = this.fetchData();
+    return this.format(data);
+  }
+
+  fetchData() {
+    throw new Error('fetchData() must be implemented');
+  }
+
+  format(data) {
+    return JSON.stringify(data);
+  }
+}
+
+class SalesReport extends Report {
+  fetchData() {
+    return { total: 1000 };
+  }
+}
+```
+
+### Visitor
+
+Separates an algorithm from the object structure it operates on by dispatching to type-specific handlers.
+
+Refs: https://github.com/HowProgrammingWorks/Visitor
+
+```javascript
+const shapes = [
+  { type: 'circle', radius: 5 },
+  { type: 'square', side: 4 },
+];
+
+const areaOf = {
+  circle: (shape) => Math.PI * shape.radius ** 2,
+  square: (shape) => shape.side ** 2,
+};
+
+const area = (shape) => areaOf[shape.type](shape);
+shapes.map(area); // [78.53981633974483, 16]
+```
