@@ -1,6 +1,6 @@
 ---
 name: error-handling
-description: Apply error handling and recovery patterns in JavaScript/TypeScript or Node.js. Use when implementing error handling, retry logic, or when the user mentions domain errors, error recovery, error escalation.
+description: Error handling and recovery in JavaScript/TypeScript and Node.js - try/catch, async errors, retry with exponential backoff, DomainError, error propagation across layers, process-level handlers, graceful shutdown. Use whenever writing code that retries, catches, wraps, or reports errors, or handles failures, timeouts, or shutdown
 ---
 
 # Error Handling
@@ -13,25 +13,29 @@ description: Apply error handling and recovery patterns in JavaScript/TypeScript
 ## Sync error handling
 
 ```javascript
-try {
-  const result = parse(input);
-  return result;
-} catch (error) {
-  console.error({ error });
-  return defaultValue;
-}
+const parseInput = (input, defaultValue) => {
+  try {
+    const result = parse(input);
+    return result;
+  } catch (error) {
+    console.error({ error });
+    return defaultValue;
+  }
+};
 ```
 
 ## Async error handling
 
 ```javascript
-try {
-  const data = await fetchData(url);
-  return data;
-} catch (error) {
-  if (error.code === 'ECONNREFUSED') return fallback();
-  throw err;
-}
+const load = async (url) => {
+  try {
+    const data = await fetchData(url);
+    return data;
+  } catch (error) {
+    if (error.code === 'ECONNREFUSED') return fallback();
+    throw error;
+  }
+};
 ```
 
 ## DomainError
@@ -54,7 +58,7 @@ Domain layer throws plain errors; API layer translates to DomainError when neede
 ## Error propagation across layers
 
 ```
-domain throws Error → API catches → returns DomainError(code) → client gets structured error
+domain throws Error -> API catches -> returns DomainError(code) -> client gets structured error
 ```
 
 Do not expose internal error details to clients; map to known error codes or general errors.
@@ -72,14 +76,15 @@ Do not expose internal error details to clients; map to known error codes or gen
 
 ```javascript
 const retry = async (fn, { attempts = 3, delay = 1000 } = {}) => {
-  for (let i = 0; i < attempts; i++) {
+  for (let i = 1; i < attempts; i++) {
     try {
       return await fn();
-    } catch (err) {
-      if (i === attempts - 1) throw err;
-      await new Promise((r) => setTimeout(r, delay * (i + 1)));
+    } catch {
+      const timeout = delay * 2 ** (i - 1);
+      await new Promise((resolve) => setTimeout(resolve, timeout));
     }
   }
+  return fn();
 };
 ```
 
@@ -116,7 +121,9 @@ const shutdown = () => {
     freeResources();
     process.exit(0);
   });
-  for (const [conn, res] of connections) {
+  for (const entry of connections) {
+    const conn = entry[0];
+    const res = entry[1];
     if (res) res.end('Server shutting down');
     conn.destroy();
   }
