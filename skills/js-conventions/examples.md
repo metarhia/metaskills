@@ -1,10 +1,113 @@
 # Style examples
 
-Before and after. Each pair is a structure or readability change. Product symbols, labels, and domain rules are not examples.
+Examples show code before and after applying rules from
+[SKILL.md](SKILL.md). Each change keeps the same behavior. Copy the pattern,
+not the product names, labels, or domain rules.
+
+## Named steps instead of one chain
+
+A nested ternary inside a chain becomes an early return and named values.
+
+Before:
+
+```js
+const renderList = (items) => {
+  return !items.length
+    ? ''
+    : items
+        .filter((entry) => entry.ok)
+        .map((entry) =>
+          entry.selected
+            ? chrome.selected(
+                ' › ' + (entry.isDir ? `${entry.name}/` : entry.name),
+              )
+            : (entry.isDir ? chrome.dir : chrome.file)(
+                '   ' + (entry.isDir ? `${entry.name}/` : entry.name),
+              ),
+        )
+        .join('\n');
+};
+```
+
+After:
+
+```js
+const renderList = (items) => {
+  if (!items.length) return '';
+  const visible = items.filter((entry) => entry.ok);
+  const lines = visible.map((entry) => {
+    const label = entry.isDir ? `${entry.name}/` : entry.name;
+    if (entry.selected) return chrome.selected(` › ${label}`);
+    const styled = entry.isDir ? chrome.dir(label) : chrome.file(label);
+    return `   ${styled}`;
+  });
+  return lines.join('\n');
+};
+```
+
+## ES module head and tail
+
+The CommonJS layout from SKILL.md, as an ES module:
+
+```js
+import fs from 'node:fs';
+import path from 'node:path';
+
+import { asText } from './text.js';
+import * as text from '../utils.js';
+const { stripAnsi, visibleWidth, wrapLine, wrapCodeLine, padEndVisible } = text;
+
+const MAX_WIDTH = 80;
+
+const formatValue = (value) => {
+  const source = asText(value);
+  const plain = stripAnsi(source);
+  return padEndVisible(plain, MAX_WIDTH);
+};
+
+class Session {}
+
+export { MAX_WIDTH, formatValue, Session };
+```
+
+## Defaults in the signature or in the body
+
+```js
+const renderFrame = (lang, source, options = {}) => {
+  const width = options.width ?? 80;
+  const setup = options.setup ?? false;
+  // function body
+};
+```
+
+When defaults would wrap the signature, default the bag in the body:
+
+```js
+const renderFrame = (lang, source, theme, outputs, hover, options) => {
+  const opts = options ?? {};
+  const width = opts.width ?? 80;
+  // function body
+};
+```
+
+## Own the array you reorder
+
+```js
+// BAD: sorts in place, caller loses the original order
+const rank = (entries) => entries.sort((a, b) => a.name.localeCompare(b.name));
+```
+
+```js
+// GOOD: own the array you reorder
+const byName = (a, b) => a.name.localeCompare(b.name);
+const rank = (entries) => entries.toSorted(byName);
+```
 
 ## One-line signature
 
 Defaults that wrap the parameter list move into the body. Callers that omit them still get the same values.
+
+Before:
 
 ```js
 const canWatchRecursive = (
@@ -13,10 +116,14 @@ const canWatchRecursive = (
 ) => {
   if (platform === 'win32' || platform === 'darwin') return true;
   if (platform !== 'linux') return false;
-  const [major, minor] = `${version}`.split('.').map(Number);
+  const parts = `${version}`.split('.').map(Number);
+  const major = parts[0];
+  const minor = parts[1];
   return major > 19 || (major === 19 && minor >= 1);
 };
 ```
+
+After:
 
 ```js
 const canWatchRecursive = (platform, version) => {
@@ -24,7 +131,9 @@ const canWatchRecursive = (platform, version) => {
   const node = version ?? process.versions.node;
   if (host === 'win32' || host === 'darwin') return true;
   if (host !== 'linux') return false;
-  const [major, minor] = `${node}`.split('.').map(Number);
+  const parts = `${node}`.split('.').map(Number);
+  const major = parts[0];
+  const minor = parts[1];
   return major > 19 || (major === 19 && minor >= 1);
 };
 ```
@@ -32,6 +141,8 @@ const canWatchRecursive = (platform, version) => {
 ## Block body when it is not one line
 
 A wrapped expression body becomes named steps. A block that is only `return expr` is not the goal: `arrow-body-style` unwraps it.
+
+Before:
 
 ```js
 const IGNORED_SUFFIXES = ['.lock', '~', '.swp', '.swo'];
@@ -41,6 +152,8 @@ const ignoredName = (name) =>
   name.startsWith('.#') ||
   name === '.DS_Store';
 ```
+
+After:
 
 ```js
 const IGNORED_SUFFIXES = ['.lock', '~', '.swp', '.swo'];
@@ -57,6 +170,8 @@ const ignoredName = (name) => {
 
 Each field is a local. The object is one line, and shorthand matches the field name.
 
+Before:
+
 ```js
 const commitRowFields = (entry) => {
   const { add, del } = countLabel(entry);
@@ -70,6 +185,8 @@ const commitRowFields = (entry) => {
 };
 ```
 
+After:
+
 ```js
 const commitRowFields = (entry) => {
   const { add, del } = countLabel(entry);
@@ -80,9 +197,13 @@ const commitRowFields = (entry) => {
 };
 ```
 
-Same shape for a record read from disk:
+The same pattern for a record read from disk:
+
+Before:
 
 ```js
+const { isHashObject } = require('metautil');
+
 const readCache = (file) => {
   const data = readJson(file);
   if (!isHashObject(data)) {
@@ -97,7 +218,11 @@ const readCache = (file) => {
 };
 ```
 
+After:
+
 ```js
+const { isHashObject } = require('metautil');
+
 const readCache = (file) => {
   const data = readJson(file);
   if (!isHashObject(data)) {
@@ -113,7 +238,41 @@ const readCache = (file) => {
 };
 ```
 
+## EventEmitter listeners detached explicitly
+
+```js
+class Session {
+  constructor(stream) {
+    this.stream = stream;
+    this.signalListener = () => this.onSignal();
+    this.dataListener = (chunk) => this.onData(chunk);
+    process.on('SIGINT', this.signalListener);
+    stream.on('data', this.dataListener);
+  }
+
+  close() {
+    process.off('SIGINT', this.signalListener);
+    this.stream.off('data', this.dataListener);
+  }
+}
+```
+
+## Score table next to a char group
+
+```js
+const BREAK_AFTER = ',;{([=?:+-*/%&|^<>!';
+const EARLY_SCORE = { ',': 100, ';': 100, ' ': 70 };
+
+const breakScore = (prev, cur) => {
+  if (EARLY_SCORE[prev] !== undefined) return EARLY_SCORE[prev];
+  if (BREAK_AFTER.includes(prev) && !isIdent(cur)) return 55;
+  return 0;
+};
+```
+
 ## Membership list, not a chain of comparisons
+
+Before:
 
 ```js
 const modifiedKey = (base, modText) => {
@@ -131,6 +290,8 @@ const modifiedKey = (base, modText) => {
   return base;
 };
 ```
+
+After:
 
 ```js
 const ARROW_KEYS = ['left', 'right', 'up', 'down'];
@@ -155,6 +316,8 @@ const modifiedKey = (base, modText) => {
 
 A module-level `Set` that is never mutated is a membership list. The check is `GIT_NAMES.includes(gitName)`.
 
+Before:
+
 ```js
 const GIT_NAMES = new Set([
   'HEAD',
@@ -167,6 +330,8 @@ const GIT_NAMES = new Set([
   'rebase-apply',
 ]);
 ```
+
+After:
 
 ```js
 const GIT_NAMES = [
@@ -183,47 +348,39 @@ const GIT_NAMES = [
 
 A `Set` or `Map` stays when the code adds and deletes entries, or when it needs uniqueness of a computed list.
 
-## Fixed string keys are an object
+## Fixed string keys use an object
+
+Before:
 
 ```js
-const TASK_TITLES = new Map([
-  [BACKLOG_HEAD, 'debt'],
-  [LEGACY_BACKLOG, 'debt'],
-  ['Issues', 'debt'],
-  ['Bug Reports', 'bugs'],
-  ['Bug reports', 'bugs'],
-  ['Feature Requests', 'features'],
-  ['Feature requests', 'features'],
-  ['Technical debt', 'debt'],
-  ['Research', 'research'],
-  ['Security', 'security'],
-  ...TASK_KINDS.map((kind) => [kind.title, kind.id]),
+const MIME_TYPE_BY_EXTENSION = new Map([
+  ['css', 'text/css'],
+  ['html', 'text/html'],
+  ['js', 'text/javascript'],
+  ['json', 'application/json'],
 ]);
 
-const kindOfTitle = (name) => TASK_TITLES.get(name);
+const mimeTypeOf = (extension) => MIME_TYPE_BY_EXTENSION.get(extension);
 ```
 
-```js
-const TASK_TITLES = Object.fromEntries([
-  [BACKLOG_HEAD, 'debt'],
-  [LEGACY_BACKLOG, 'debt'],
-  ['Issues', 'debt'],
-  ['Bug Reports', 'bugs'],
-  ['Bug reports', 'bugs'],
-  ['Feature Requests', 'features'],
-  ['Feature requests', 'features'],
-  ['Technical debt', 'debt'],
-  ['Research', 'research'],
-  ['Security', 'security'],
-  ...TASK_KINDS.map((kind) => [kind.title, kind.id]),
-]);
+After:
 
-const kindOfTitle = (name) => TASK_TITLES[name];
+```js
+const MIME_TYPE_BY_EXTENSION = {
+  css: 'text/css',
+  html: 'text/html',
+  js: 'text/javascript',
+  json: 'application/json',
+};
+
+const mimeTypeOf = (extension) => MIME_TYPE_BY_EXTENSION[extension];
 ```
 
 ## Lookup instead of an if chain
 
 The chain only selected a color. The table holds that choice. The function reads one entry. Each entry still encodes the current-row case, so the unused color is not computed first.
+
+Before:
 
 ```js
 const pieceFg = (kind, tone) => {
@@ -244,6 +401,8 @@ const pieceFg = (kind, tone) => {
   return tone.fgRgb;
 };
 ```
+
+After:
 
 ```js
 const PIECE_FG = {
@@ -266,6 +425,8 @@ const pieceFg = (kind, tone) => {
 
 An action list per screen is the same idea: one object maps the key to the list, and the function only chooses the key.
 
+Before:
+
 ```js
 const extraFooterActions = (view) => {
   const { pane } = view;
@@ -281,6 +442,8 @@ const extraFooterActions = (view) => {
   return GIT_FOOTER;
 };
 ```
+
+After:
 
 ```js
 const FOOTER_EXTRA = {
@@ -303,6 +466,8 @@ const extraFooterActions = (view) => {
 ## Multiline condition becomes a table
 
 Screens that need no extra state share one function. Screens that do need it are their own functions in the same table.
+
+Before:
 
 ```js
 const headerScreen = (view) => {
@@ -327,6 +492,8 @@ const headerScreen = (view) => {
   return isTaskView(view) ? REPO_TASKS_LABEL : '';
 };
 ```
+
+After:
 
 ```js
 const agentsScreen = (view) => {
@@ -370,41 +537,51 @@ const headerScreen = (view) => {
 
 A ternary already runs one call. Statements must keep that. Computing both moves and then keeping one would change the stored order.
 
+Before:
+
 ```js
-moveIssue(delta) {
-  if (!this.isOpen() || !delta) return;
-  const row = this.rowAt(this.clampedTaskFocus());
-  if (!row || row.draft) return;
-  this.composer.commitCompose();
-  const store = this.ui.review.store;
-  const moved = row.quote
-    ? store.moveFeedback(row.key, delta)
-    : store.moveTask(row.task.id, delta);
-  if (!moved) return;
-  this.composer.closeCompose();
-  this.followRow(row.quote ? { quote: true, key: row.key } : row);
-  this.ui.flushReview(true);
+class IssuesPane {
+  moveIssue(delta) {
+    if (!this.isOpen() || !delta) return;
+    const row = this.rowAt(this.clampedTaskFocus());
+    if (!row || row.draft) return;
+    this.composer.commitCompose();
+    const store = this.ui.review.store;
+    const moved = row.quote
+      ? store.moveFeedback(row.key, delta)
+      : store.moveTask(row.task.id, delta);
+    if (!moved) return;
+    this.composer.closeCompose();
+    this.followRow(row.quote ? { quote: true, key: row.key } : row);
+    this.ui.flushReview(true);
+  }
 }
 ```
 
+After:
+
 ```js
-moveIssue(delta) {
-  if (!this.isOpen() || !delta) return;
-  const row = this.rowAt(this.clampedTaskFocus());
-  if (!row || row.draft) return;
-  this.composer.commitCompose();
-  const store = this.ui.review.store;
-  let moved;
-  if (row.quote) moved = store.moveFeedback(row.key, delta);
-  else moved = store.moveTask(row.task.id, delta);
-  if (!moved) return;
-  this.composer.closeCompose();
-  this.followRow(row.quote ? { quote: true, key: row.key } : row);
-  this.ui.flushReview(true);
+class IssuesPane {
+  moveIssue(delta) {
+    if (!this.isOpen() || !delta) return;
+    const row = this.rowAt(this.clampedTaskFocus());
+    if (!row || row.draft) return;
+    this.composer.commitCompose();
+    const store = this.ui.review.store;
+    let moved = false;
+    if (row.quote) moved = store.moveFeedback(row.key, delta);
+    else moved = store.moveTask(row.task.id, delta);
+    if (!moved) return;
+    this.composer.closeCompose();
+    this.followRow(row.quote ? { quote: true, key: row.key } : row);
+    this.ui.flushReview(true);
+  }
 }
 ```
 
 ## Use the library when the result matches
+
+Before:
 
 ```js
 const parseJson = (text) => {
@@ -424,7 +601,11 @@ const parseJsonModels = (text) => {
 };
 ```
 
+After:
+
 ```js
+const { jsonParse } = require('metautil');
+
 const parseJsonModels = (text) => {
   const plain = stripAnsi(`${text ?? ''}`);
   const start = jsonStart(plain);
@@ -441,6 +622,8 @@ Keep a local helper when the library result differs. A local date stamp uses loc
 ## Initialize every let
 
 A `let` with no initializer is not allowed. If every path assigns before the value is read, bind `const` once. If a path can keep the starting value, initialize `let` to that value and read it on that path.
+
+Before:
 
 ```js
 const proposed = (declared, name, out, vul, resolved) => {
@@ -461,6 +644,8 @@ const readNames = (dir) => {
 };
 ```
 
+After:
+
 ```js
 const proposed = (declared, name, out, vul, resolved) => {
   const change = declared
@@ -476,7 +661,6 @@ const readNames = (dir) => {
   } catch {
     // unreadable directory
   }
-  if (!entries) return [];
-  return entries;
+  return entries ? entries : [];
 };
 ```
