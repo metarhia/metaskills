@@ -32,20 +32,68 @@ const detectTargetDirs = () => {
   return found;
 };
 
+const listSkills = (source) => {
+  const names = [];
+  const entries = fs.readdirSync(source, { withFileTypes: true });
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    if (!entry.isDirectory()) continue;
+    const manifest = path.join(source, entry.name, 'SKILL.md');
+    if (fs.existsSync(manifest)) names.push(entry.name);
+  }
+  return names.sort();
+};
+
+const isInside = (target, dir) => {
+  const relative = path.relative(dir, target);
+  if (relative === '' || path.isAbsolute(relative)) return false;
+  return !relative.startsWith('..');
+};
+
+// Harnesses discover only <dir>/skills/<name>/SKILL.md, one level deep,
+// so each skill gets its own link; earlier versions linked the whole
+// folder as <dir>/skills/metaskills, which agents never loaded
+const removeStaleLinks = (parentPath, source, names) => {
+  const removed = [];
+  const sourcePath = path.resolve(source);
+  const entries = fs.readdirSync(parentPath, { withFileTypes: true });
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    if (!entry.isSymbolicLink()) continue;
+    const linkPath = path.join(parentPath, entry.name);
+    const target = path.resolve(parentPath, fs.readlinkSync(linkPath));
+    const isLegacy = target === sourcePath;
+    if (!isLegacy && !isInside(target, sourcePath)) continue;
+    const expected = path.join(sourcePath, entry.name);
+    const isCurrent = names.includes(entry.name) && target === expected;
+    if (isCurrent) continue;
+    fs.unlinkSync(linkPath);
+    removed.push(entry.name);
+  }
+  return removed;
+};
+
+const describeLinks = (targetDir, created, removed, skipped) => {
+  const parts = [];
+  if (created.length > 0) parts.push(`linked ${created.join(', ')}`);
+  if (removed.length > 0) parts.push(`removed ${removed.join(', ')}`);
+  if (skipped.length > 0) parts.push(`skipped ${skipped.join(', ')}`);
+  if (parts.length === 0) return 'Already linked ' + targetDir;
+  return `${targetDir}: ${parts.join('; ')}`;
+};
+
 const ensureSkillLinks = (targetDir, dirs = {}) => {
   const { root = PROJECT_DIR, source = SKILLS_DIR } = dirs;
   const parentPath = path.join(root, targetDir);
+  const created = [];
+  const removed = [];
+  const skipped = [];
 
   if (!fs.existsSync(parentPath)) {
     fs.mkdirSync(parentPath, { recursive: true });
-  } else {
-    const stat = fs.lstatSync(parentPath);
-    if (stat.isSymbolicLink()) {
-      return {
-        created: false,
-        message: `${targetDir} is a symlink; remove it to use skill links`,
-      };
-    }
+  } else if (fs.lstatSync(parentPath).isSymbolicLink()) {
+    const message = `${targetDir} is a symlink; remove it to use skill links`;
+    return { created, removed, skipped, message };
   }
 
   const linkPath = path.join(parentPath, 'metaskills');
@@ -59,21 +107,30 @@ const ensureSkillLinks = (targetDir, dirs = {}) => {
           message: `Already linked ${targetDir}`,
         };
       }
+  const names = listSkills(source);
+  const stale = removeStaleLinks(parentPath, source, names);
+  for (let i = 0; i < stale.length; i++) removed.push(stale[i]);
+
+  for (let i = 0; i < names.length; i++) {
+    const name = names[i];
+    const linkPath = path.join(parentPath, name);
+    const skillPath = path.join(source, name);
+    const stat = fs.lstatSync(linkPath, { throwIfNoEntry: false });
+    if (stat) {
+      const isLink = stat.isSymbolicLink();
+      const target = isLink ? fs.readlinkSync(linkPath) : '';
+      const resolved = path.resolve(parentPath, target);
+      const isOwn = isLink && resolved === path.resolve(skillPath);
+      if (!isOwn) skipped.push(name);
+      continue;
     }
-    return {
-      created: false,
-      message: `${targetDir}/metaskills exists and is not a symlink; skip`,
-    };
-  } catch (error) {
-    if (error.code !== 'ENOENT') throw error;
+    const relativeTarget = path.relative(parentPath, skillPath);
+    fs.symlinkSync(relativeTarget, linkPath, 'dir');
+    created.push(name);
   }
 
-  const relativeTarget = path.relative(parentPath, source);
-  fs.symlinkSync(relativeTarget, linkPath, 'dir');
-  return {
-    created: true,
-    message: `Linked ${targetDir}/metaskills -> metaskills/skills`,
-  };
+  const message = describeLinks(targetDir, created, removed, skipped);
+  return { created, removed, skipped, message };
 };
 
 const addToIgnoreFile = (filePath, entry) => {
@@ -83,13 +140,20 @@ const addToIgnoreFile = (filePath, entry) => {
   if (lines.includes(entry)) return;
   const sep = content.endsWith('\n') ? '' : '\n';
   const updated = `${content + sep + entry}\n`;
+  const isTerminated = content === '' || content.endsWith('\n');
+  const sep = isTerminated ? '' : '\n';
+  const updated = content + sep + entry + '\n';
   fs.writeFileSync(filePath, updated);
 };
 
-const ensureIgnored = () => {
-  const entry = '*/skills/metaskills';
-  addToIgnoreFile(path.join(PROJECT_DIR, '.gitignore'), entry);
-  addToIgnoreFile(path.join(PROJECT_DIR, '.npmignore'), entry);
+const ensureIgnored = (names) => {
+  const gitignore = path.join(PROJECT_DIR, '.gitignore');
+  const npmignore = path.join(PROJECT_DIR, '.npmignore');
+  for (let i = 0; i < names.length; i++) {
+    const entry = `*/skills/${names[i]}`;
+    addToIgnoreFile(gitignore, entry);
+    addToIgnoreFile(npmignore, entry);
+  }
 };
 
 const ensureInstalled = () => {
@@ -106,13 +170,13 @@ const ensureInstalled = () => {
 
 const main = () => {
   ensureInstalled();
-  ensureIgnored();
 
   if (!fs.existsSync(SKILLS_DIR)) {
     console.error('metaskills: node_modules/metaskills/skills not found.');
     process.exit(1);
   }
   const source = SKILLS_DIR;
+  ensureIgnored(listSkills(source));
 
   const ide = (process.argv[2] || process.env.LINK_IDE || '').toLowerCase();
   const ideNames = Object.keys(IDE_TARGETS);
@@ -174,4 +238,4 @@ const main = () => {
 
 if (require.main === module) main();
 
-module.exports = { ensureSkillLinks };
+module.exports = { ensureSkillLinks, listSkills };
