@@ -1,6 +1,7 @@
 node_modules
-/log/
+log
 *.log
+.plan
 .skills
 .cursor
 .reslop

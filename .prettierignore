@@ -1,3 +1,6 @@
 package-lock.json
 package.json
-skills/
+skills
+.plan
+.skills
+.reslop

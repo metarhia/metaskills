@@ -50,76 +50,103 @@ const isInside = (target, dir) => {
   return !relative.startsWith('..');
 };
 
-// Harnesses discover only <dir>/skills/<name>/SKILL.md, one level deep,
-// so each skill gets its own link; earlier versions linked the whole
-// folder as <dir>/skills/metaskills, which agents never loaded
-const removeStaleLinks = (parentPath, source, names) => {
+const isOwnedLink = (linkPath, sourcePath) => {
+  const linkTarget = fs.readlinkSync(linkPath);
+  const resolved = path.resolve(path.dirname(linkPath), linkTarget);
+  if (resolved === sourcePath) return true;
+  return isInside(resolved, sourcePath);
+};
+
+// Agents read <target>/<skill-name>/SKILL.md. The target from the IDE table
+// is the symlink, so .cursor/skills points at the package skills folder.
+// Older releases added a metaskills directory under that target.
+const removeOwnedLinks = (dirPath, sourcePath) => {
   const removed = [];
-  const sourcePath = path.resolve(source);
-  const entries = fs.readdirSync(parentPath, { withFileTypes: true });
+  const entries = fs.readdirSync(dirPath, { withFileTypes: true });
   for (let i = 0; i < entries.length; i++) {
     const entry = entries[i];
     if (!entry.isSymbolicLink()) continue;
-    const linkPath = path.join(parentPath, entry.name);
-    const target = path.resolve(parentPath, fs.readlinkSync(linkPath));
-    const isLegacy = target === sourcePath;
-    if (!isLegacy && !isInside(target, sourcePath)) continue;
-    const expected = path.join(sourcePath, entry.name);
-    const isCurrent = names.includes(entry.name) && target === expected;
-    if (isCurrent) continue;
+    const linkPath = path.join(dirPath, entry.name);
+    if (!isOwnedLink(linkPath, sourcePath)) continue;
     fs.unlinkSync(linkPath);
     removed.push(entry.name);
   }
+  removed.sort();
   return removed;
 };
 
-const describeLinks = (targetDir, created, removed, skipped) => {
-  const parts = [];
-  if (created.length > 0) parts.push(`linked ${created.join(', ')}`);
-  if (removed.length > 0) parts.push(`removed ${removed.join(', ')}`);
-  if (skipped.length > 0) parts.push(`skipped ${skipped.join(', ')}`);
-  if (parts.length === 0) return `Already linked ${targetDir}`;
-  return `${targetDir}: ${parts.join('; ')}`;
+const createLink = (linkPath, sourcePath) => {
+  const parentPath = path.dirname(linkPath);
+  const relativeTarget = path.relative(parentPath, sourcePath);
+  fs.symlinkSync(relativeTarget, linkPath, 'dir');
+};
+
+const withRemoved = (message, removed) => {
+  if (removed.length === 0) return message;
+  return `${message}; removed ${removed.join(', ')}`;
+};
+
+const linkFresh = (linkPath, sourcePath, targetDir) => {
+  createLink(linkPath, sourcePath);
+  return {
+    created: [targetDir],
+    removed: [],
+    skipped: [],
+    message: `Linked ${targetDir}`,
+  };
+};
+
+const reuseLink = (linkPath, sourcePath, targetDir) => {
+  const linkTarget = fs.readlinkSync(linkPath);
+  const resolved = path.resolve(path.dirname(linkPath), linkTarget);
+  if (resolved === sourcePath) {
+    return {
+      created: [],
+      removed: [],
+      skipped: [],
+      message: `Already linked ${targetDir}`,
+    };
+  }
+  const message = `${targetDir} is a symlink; remove it to use skill links`;
+  return { created: [], removed: [], skipped: [targetDir], message };
+};
+
+const directoryIsReplaceable = (dirPath, sourcePath) => {
+  const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+  for (let i = 0; i < entries.length; i++) {
+    const entry = entries[i];
+    if (!entry.isSymbolicLink()) return false;
+    const linkPath = path.join(dirPath, entry.name);
+    if (!isOwnedLink(linkPath, sourcePath)) return false;
+  }
+  return true;
+};
+
+const replaceDirectory = (linkPath, sourcePath, targetDir) => {
+  if (!directoryIsReplaceable(linkPath, sourcePath)) {
+    const message = `${targetDir} exists and is not a symlink; skip`;
+    return { created: [], removed: [], skipped: [targetDir], message };
+  }
+  const removed = removeOwnedLinks(linkPath, sourcePath);
+  fs.rmdirSync(linkPath);
+  createLink(linkPath, sourcePath);
+  return {
+    created: [targetDir],
+    removed,
+    skipped: [],
+    message: withRemoved(`Linked ${targetDir}`, removed),
+  };
 };
 
 const ensureSkillLinks = (targetDir, dirs = {}) => {
   const { root = PROJECT_DIR, source = SKILLS_DIR } = dirs;
-  const parentPath = path.join(root, targetDir);
-  const created = [];
-  const removed = [];
-  const skipped = [];
-
-  if (!fs.existsSync(parentPath)) {
-    fs.mkdirSync(parentPath, { recursive: true });
-  } else if (fs.lstatSync(parentPath).isSymbolicLink()) {
-    const message = `${targetDir} is a symlink; remove it to use skill links`;
-    return { created, removed, skipped, message };
-  }
-
-  const names = listSkills(source);
-  const stale = removeStaleLinks(parentPath, source, names);
-  for (let i = 0; i < stale.length; i++) removed.push(stale[i]);
-
-  for (let i = 0; i < names.length; i++) {
-    const name = names[i];
-    const linkPath = path.join(parentPath, name);
-    const skillPath = path.join(source, name);
-    const stat = fs.lstatSync(linkPath, { throwIfNoEntry: false });
-    if (stat) {
-      const isLink = stat.isSymbolicLink();
-      const target = isLink ? fs.readlinkSync(linkPath) : '';
-      const resolved = path.resolve(parentPath, target);
-      const isOwn = isLink && resolved === path.resolve(skillPath);
-      if (!isOwn) skipped.push(name);
-      continue;
-    }
-    const relativeTarget = path.relative(parentPath, skillPath);
-    fs.symlinkSync(relativeTarget, linkPath, 'dir');
-    created.push(name);
-  }
-
-  const message = describeLinks(targetDir, created, removed, skipped);
-  return { created, removed, skipped, message };
+  const linkPath = path.join(root, targetDir);
+  const sourcePath = path.resolve(source);
+  fs.mkdirSync(path.dirname(linkPath), { recursive: true });
+  const stat = fs.lstatSync(linkPath, { throwIfNoEntry: false });
+  if (!stat) return linkFresh(linkPath, sourcePath, targetDir);
+  if (stat.isSymbolicLink()) return reuseLink(linkPath, sourcePath, targetDir);
+  return replaceDirectory(linkPath, sourcePath, targetDir);
 };
 
 const addToIgnoreFile = (filePath, entry) => {
@@ -133,11 +160,11 @@ const addToIgnoreFile = (filePath, entry) => {
   fs.writeFileSync(filePath, updated);
 };
 
-const ensureIgnored = (names) => {
+const ensureIgnored = (targetDirs) => {
   const gitignore = path.join(PROJECT_DIR, '.gitignore');
   const npmignore = path.join(PROJECT_DIR, '.npmignore');
-  for (let i = 0; i < names.length; i++) {
-    const entry = `*/skills/${names[i]}`;
+  for (let i = 0; i < targetDirs.length; i++) {
+    const entry = targetDirs[i];
     addToIgnoreFile(gitignore, entry);
     addToIgnoreFile(npmignore, entry);
   }
@@ -163,7 +190,6 @@ const main = () => {
     process.exit(1);
   }
   const source = SKILLS_DIR;
-  ensureIgnored(listSkills(source));
 
   const ide = (process.argv[2] || process.env.LINK_IDE || '').toLowerCase();
   const ideNames = Object.keys(IDE_TARGETS);
@@ -171,6 +197,7 @@ const main = () => {
   const runLink = (targetDir) => {
     try {
       const result = ensureSkillLinks(targetDir, { source });
+      if (result.skipped.length === 0) ensureIgnored([targetDir]);
       console.log(result.message);
     } catch (error) {
       console.error(`Failed to link ${targetDir}:`, error.message);
