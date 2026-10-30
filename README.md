@@ -1,7 +1,7 @@
 # Metarhia Skills
 
 [![ci status](https://github.com/metarhia/metaskills/workflows/Testing%20CI/badge.svg)](https://github.com/metarhia/metaskills/actions?query=workflow%3A%22Testing+CI%22+branch%3Amain)
-[![snyk](https://snyk.io/test/github/metarhia/Skills/badge.svg)](https://snyk.io/test/github/metarhia/Skills)
+[![snyk](https://snyk.io/test/github/metarhia/metaskills/badge.svg)](https://snyk.io/test/github/metarhia/metaskills)
 [![npm version](https://badge.fury.io/js/metaskills.svg)](https://badge.fury.io/js/metaskills)
 [![npm downloads/month](https://img.shields.io/npm/dm/metaskills.svg)](https://www.npmjs.com/package/metaskills)
 [![npm downloads](https://img.shields.io/npm/dt/metaskills.svg)](https://www.npmjs.com/package/metaskills)
@@ -48,7 +48,7 @@ Skills live under `skills/<name>/SKILL.md`:
 - `js-data-structures` — JavaScript collections and structural patterns
 - `data-structures` — general data-structure guidance for agents
 - `metautil-data-structures` — metautil structures (list, queue, deque, trie, …)
-- `js-gof` — GoF creational and related patterns in JavaScript
+- `js-gof` — GoF creational, structural, and related patterns in JavaScript
 - `error-handling` — error handling conventions
 - `npm-publish` — prepare an npm package for release
 
