@@ -2,6 +2,10 @@
 
 ## [Unreleased][unreleased]
 
+- Symlink each IDE target directory (`.cursor/skills`, `.claude/skills`, and
+  the other rows) at the package skills folder, so agents load
+  `<target>/<skill-name>/SKILL.md`
+
 ## [1.0.5][] - 2026-08-06
 
 - Added skills: data-structures, metautil-data-structures
