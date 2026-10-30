@@ -1,6 +1,7 @@
 ---
 name: npm-publish
 description: Prepare an npm package for publishing. Handles version bump, CHANGELOG update, typings check, test run, README refresh, package.json audit, and npm pack verification. Use when the user asks to prepare a release, bump version, publish a package, or do release prep.
+disable-model-invocation: true
 ---
 
 # npm Publish Preparation
@@ -9,7 +10,7 @@ Systematic workflow for preparing an npm package for a new release. Every step m
 
 ## Step 0: Gather Release Intent
 
-Ask the user (use AskQuestion if available):
+Ask the user (with the agent's question tool if it has one, otherwise in chat):
 
 1. **Version bump type**: patch / minor / major / explicit version / prerelease tag
 2. **Prerelease label** (if any): e.g. `alpha`, `beta`, `rc`, `prerelease`
@@ -36,13 +37,13 @@ If `npm test` fails, stop and fix issues before continuing.
 
 Compute the new version based on user intent and semver rules:
 
-- **patch**: `1.2.3` → `1.2.4`
-- **minor**: `1.2.3` → `1.3.0`
-- **major**: `1.2.3` → `2.0.0`
-- **prerelease**: `1.2.3` → `1.2.4-<label>.0`, or `1.2.4-beta.0` → `1.2.4-beta.1`
-- **Removing prerelease tag**: `4.0.3-prerelease` → `4.0.3` (just strip the suffix)
+- **patch**: `1.2.3` -> `1.2.4`
+- **minor**: `1.2.3` -> `1.3.0`
+- **major**: `1.2.3` -> `2.0.0`
+- **prerelease**: `1.2.3` -> `1.2.4-<label>.0`, or `1.2.4-beta.0` -> `1.2.4-beta.1`
+- **Removing prerelease tag**: `4.0.3-prerelease` -> `4.0.3` (just strip the suffix)
 
-Update `"version"` in `package.json` using StrReplace (not `npm version` — we manage changelog manually).
+Update `"version"` in `package.json` by editing the file directly (not `npm version`: the changelog is managed manually).
 
 ## Step 3: Update CHANGELOG.md
 
@@ -166,7 +167,7 @@ Present a summary to the user:
 ```
 Release preparation complete:
   Package:  <name>
-  Version:  <old> → <new>
+  Version:  <old> -> <new>
   Tests:    ✓ passing
   Types:    ✓ valid
   Packed:   <N> files, <size>
