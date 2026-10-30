@@ -181,36 +181,9 @@ class Queue {
     return this.#buf.size;
   }
 }
-
-class Deque {
-  #buf = new CircularBuffer();
-  push(v) {
-    this.#buf.push(v);
-  }
-  pop() {
-    return this.#buf.pop();
-  }
-  unshift(v) {
-    this.#buf.unshift(v);
-  }
-  shift() {
-    return this.#buf.shift();
-  }
-}
-
-class Stack {
-  #buf = new CircularBuffer();
-  push(v) {
-    this.#buf.push(v);
-  }
-  pop() {
-    return this.#buf.pop();
-  }
-  peek() {
-    return this.#buf.at(-1);
-  }
-}
 ```
+
+Deque and Stack use the same buffer. Deque forwards `push`, `pop`, `unshift`, and `shift`. Stack forwards `push` and `pop`, and peeks with `at(-1)`.
 
 ## Unrolled List
 
