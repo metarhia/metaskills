@@ -1,6 +1,7 @@
 ---
 name: js-data-structures
 description: Choose and use native JavaScript collections for Big-O, readability, semantics, naming, stability, or testability. Use when working with Map, Object, Set, Array, WeakMap, WeakSet, TypedArray, or deciding among built-in collections. For custom queues, lists, heaps, tries, and related structures, use the data-structures skill.
+description: Implement or choose JavaScript data structures - object vs Map vs Set vs array vs typed array, lookup tables, membership, aliases, ring (circular) buffer, queue, deque, stack, linked list, tree, binary search tree, BTree, graph, and cache. Use whenever writing a class or module that stores, buffers, queues, or indexes items, or when choosing a collection type.
 ---
 
 # Native Data Structures (JavaScript)
@@ -16,6 +17,41 @@ description: Choose and use native JavaScript collections for Big-O, readability
 - Track object presence without retaining: use `WeakSet` (avoid `Set`, leaks)
 - Numeric / binary data, I/O, crypto: use TypedArray / `ArrayBuffer` (avoid `number[]` for hot binary work)
 - Hot queue / deque / stack ends: do not rely on `Array.shift`/`unshift` — use a custom ring or linked structure
+## Choosing a collection
+
+Pick the smallest structure that matches how the values relate:
+
+- Fixed schema (record, entity, options): object with fixed property access
+  (`obj.x`)
+- Distinct values or actions per key (dispatch): lookup table object
+  `{ key: value }`; use `Object.fromEntries` to build one from a list
+- Dynamic keys, added or deleted keys, or non-string keys: `Map`
+- String-key dictionary: `Object.create(null)` in hot library or system code;
+  `{}` in domain and non-hot code
+- Membership in domain and non-hot code: array + `.includes()` for tokens, or
+  string + `.includes(ch)` for characters; use `Set` when values change or
+  uniqueness is the meaning
+- Membership in hot library or system code: `Set.has` for tokens at any size
+  (faster than `.includes` from four items); `Uint8Array(128)` indexed by
+  `charCodeAt` for character classes
+- Numeric and binary work: typed arrays
+
+Use `obj[key]` only for lookup tables and string-key dictionaries. Use `obj.x`
+for known fields.
+
+Do not use `{ token: true, other: true }` for membership. Use a string, array,
+`Set`, or code table. Score and style tables keep real values in objects;
+membership-only character groups stay strings. See the examples in the
+`js-conventions` skill.
+
+Keep aliases and synonyms in one map. Export small helpers such as `mapAlias`
+or `isKind` instead of copying lists. Derive lists from maps, reuse shared maps
+for overlapping subsets, and normalize aliases at the edge.
+
+The implementations below also follow the object shape and array rules in the
+`js-conventions` skill: initialize fields in constructors, keep arrays packed
+with `new Array(size).fill(null)`, return `null` for an empty read, and clear
+consumed slots.
 
 ## Complexity and code characteristics
 
@@ -98,6 +134,25 @@ const last = ids.pop();
 const ALLOWED = ['read', 'write'];
 if (ALLOWED.includes(role)) {
   /* ... */
+  pop() {
+    if (!this.#head) return null;
+    const { data } = this.#head;
+    this.#head = this.#head.next;
+    this.#length--;
+    return data;
+  }
+
+  get length() {
+    return this.#length;
+  }
+
+  *[Symbol.iterator]() {
+    let node = this.#head;
+    while (node) {
+      yield node.data;
+      node = node.next;
+    }
+  }
 }
 ```
 
@@ -120,6 +175,18 @@ sessions.set('fallback', null);
 
 for (const [key, value] of sessions) {
   // insertion order
+class Queue {
+  #buffer = [];
+  enqueue(item) {
+    this.#buffer.push(item);
+  }
+  dequeue() {
+    if (this.#buffer.length === 0) return null;
+    return this.#buffer.shift();
+  }
+  get length() {
+    return this.#buffer.length;
+  }
 }
 sessions.delete(socket);
 console.log(sessions.size);
@@ -142,6 +209,25 @@ for (const id of incoming) {
   if (seen.has(id)) continue;
   seen.add(id);
   process(id);
+class Node {
+  constructor(size) {
+    this.buffer = new Array(size).fill(null);
+    this.readIdx = 0;
+    this.writeIdx = 0;
+    this.next = null;
+  }
+  enqueue(item) {
+    if (this.writeIdx >= this.buffer.length) return false;
+    this.buffer[this.writeIdx++] = item;
+    return true;
+  }
+  dequeue() {
+    if (this.readIdx >= this.writeIdx) return null;
+    const item = this.buffer[this.readIdx];
+    this.buffer[this.readIdx] = null;
+    this.readIdx++;
+    return item;
+  }
 }
 
 const unique = [...new Set(items)];
@@ -165,6 +251,41 @@ const attach = (obj, data) => {
   meta.set(obj, data);
   tracked.add(obj);
 };
+class CircularBuffer {
+  #buffer = null;
+  #size = 0;
+  #count = 0;
+  #readIdx = 0;
+  #writeIdx = 0;
+
+  constructor(size) {
+    this.#size = size;
+    this.#buffer = new Array(size).fill(null);
+  }
+
+  write(item) {
+    if (this.#count === this.#size) return false;
+    this.#buffer[this.#writeIdx] = item;
+    this.#writeIdx++;
+    if (this.#writeIdx === this.#size) this.#writeIdx = 0;
+    this.#count++;
+    return true;
+  }
+
+  read() {
+    if (this.#count === 0) return null;
+    const item = this.#buffer[this.#readIdx];
+    this.#buffer[this.#readIdx] = null;
+    this.#readIdx++;
+    if (this.#readIdx === this.#size) this.#readIdx = 0;
+    this.#count--;
+    return item;
+  }
+
+  get length() {
+    return this.#count;
+  }
+}
 ```
 
 **Hints:**
@@ -192,6 +313,24 @@ const view = new DataView(buf);
 view.setUint32(0, 0xdeadbeef, true);
 bytes[4] = 0xff;
 const frame = bytes.subarray(0, 8); // shared memory; `slice` copies
+class BST {
+  constructor(data) {
+    this.data = data;
+    this.left = null;
+    this.right = null;
+  }
+
+  insert(data) {
+    if (data < this.data) {
+      if (this.left) this.left.insert(data);
+      else this.left = new BST(data);
+    } else if (this.right) {
+      this.right.insert(data);
+    } else {
+      this.right = new BST(data);
+    }
+  }
+}
 ```
 
 **Hints:**
