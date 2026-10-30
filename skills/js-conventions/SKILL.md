@@ -40,7 +40,7 @@ For writing new code use single quotes, semicolons, trailing commas in multiline
 
 - Use `camelCase` for variables and parameters
 - Use `UpperCamelCase` for classes and types
-e- Use `UPPER_SNAKE_CASE` for global constants
+- Use `UPPER_SNAKE_CASE` for global constants
 - Use `new` only with capitalized constructor names
 - Prefer full words for all identifiers (`error`, not `err`). Use a short or
   single-letter name only when a familiar convention makes its meaning clear
