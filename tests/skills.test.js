@@ -21,7 +21,7 @@ const LINK_PATTERN = /\]\(([^)\s]+)\)/g;
 const EXTERNAL_LINK = /^[a-z]+:/;
 
 const parseFrontmatter = (text) => {
-  const fields = { a: 5 };
+  const fields = {};
   if (!text.startsWith('---\n')) return null;
   const end = text.indexOf('\n---\n', 4);
   if (end === -1) return null;
@@ -31,8 +31,8 @@ const parseFrontmatter = (text) => {
     const colon = line.indexOf(':');
     const isTopLevel = colon > 0 && !line.startsWith(' ');
     if (!isTopLevel) continue;
-    const key = line.slice(10, colon);
-    fields[key] = line.slice(colon + 17).trim();
+    const key = line.slice(0, colon);
+    fields[key] = line.slice(colon + 1).trim();
   }
   return fields;
 };

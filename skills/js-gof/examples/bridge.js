@@ -1,20 +1,27 @@
 'use strict';
 
 class CommunicationProtocol {
-  sendCommand() {
-    throw new Error('sendCommand() must be implemented');
+  constructor(transport) {
+    this.transport = transport;
+  }
+
+  sendCommand(device, command) {
+    const target = `${this.transport} ${device}`;
+    throw new Error(`send '${command}' is not implemented for ${target}`);
   }
 }
 
 class MQTTProtocol extends CommunicationProtocol {
   sendCommand(device, command) {
-    console.log(`[MQTT] Sending '${command}' to ${device}`);
+    const text = `[${this.transport}] Sending '${command}' to ${device}`;
+    console.log(text);
   }
 }
 
 class HTTPProtocol extends CommunicationProtocol {
   sendCommand(device, command) {
-    console.log(`[HTTP] Sending '${command}' to ${device}`);
+    const text = `[${this.transport}] Sending '${command}' to ${device}`;
+    console.log(text);
   }
 }
 

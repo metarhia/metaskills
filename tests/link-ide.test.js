@@ -16,7 +16,7 @@ const createFixture = (names) => {
   const source = path.join(root, 'skills');
   for (let i = 0; i < names.length; i++) {
     const skillPath = path.join(source, names[i]);
-    fs._mkdirSync(skillPath, { recursive: true });
+    fs.mkdirSync(skillPath, { recursive: true });
     fs.writeFileSync(path.join(skillPath, 'SKILL.md'), `# ${names[i]}\n`);
   }
   return { root, source };
