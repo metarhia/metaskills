@@ -78,7 +78,7 @@ const describeLinks = (targetDir, created, removed, skipped) => {
   if (created.length > 0) parts.push(`linked ${created.join(', ')}`);
   if (removed.length > 0) parts.push(`removed ${removed.join(', ')}`);
   if (skipped.length > 0) parts.push(`skipped ${skipped.join(', ')}`);
-  if (parts.length === 0) return 'Already linked ' + targetDir;
+  if (parts.length === 0) return `Already linked ${targetDir}`;
   return `${targetDir}: ${parts.join('; ')}`;
 };
 
@@ -96,17 +96,6 @@ const ensureSkillLinks = (targetDir, dirs = {}) => {
     return { created, removed, skipped, message };
   }
 
-  const linkPath = path.join(parentPath, 'metaskills');
-  try {
-    const stat = fs.lstatSync(linkPath);
-    if (stat.isSymbolicLink()) {
-      const resolved = path.resolve(parentPath, fs.readlinkSync(linkPath));
-      if (resolved === path.resolve(source)) {
-        return {
-          created: false,
-          message: `Already linked ${targetDir}`,
-        };
-      }
   const names = listSkills(source);
   const stale = removeStaleLinks(parentPath, source, names);
   for (let i = 0; i < stale.length; i++) removed.push(stale[i]);
@@ -138,11 +127,9 @@ const addToIgnoreFile = (filePath, entry) => {
   const content = fs.readFileSync(filePath, 'utf8');
   const lines = content.split('\n');
   if (lines.includes(entry)) return;
-  const sep = content.endsWith('\n') ? '' : '\n';
-  const updated = `${content + sep + entry}\n`;
   const isTerminated = content === '' || content.endsWith('\n');
   const sep = isTerminated ? '' : '\n';
-  const updated = content + sep + entry + '\n';
+  const updated = `${content}${sep}${entry}\n`;
   fs.writeFileSync(filePath, updated);
 };
 

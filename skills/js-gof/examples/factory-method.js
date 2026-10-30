@@ -18,7 +18,7 @@ class Product {
 
 class Creator {
   factoryMethod(...args) {
-    return new Product(...args);
+    return new this.ProductType(...args);
   }
 }
 
