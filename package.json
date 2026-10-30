@@ -42,7 +42,8 @@
   "scripts": {
     "lint": "eslint . && prettier -c \"**/*.js\" \"**/*.json\" \"**/*.md\"",
     "fix": "eslint . --fix && prettier --write \"**/*.js\" \"**/*.json\" \"**/*.md\"",
-    "test": "npm run lint && node --test tests/link-ide.test.js"
+    "test": "npm run lint && node --test \"tests/*.test.js\"",
+    "evals": "node evals/run.js"
   },
   "engines": {
     "node": ">=18"
@@ -52,5 +53,10 @@
     "eslint": "^9.39.5",
     "eslint-config-metarhia": "^9.1.9",
     "prettier": "^3.9.6"
+    "@eslint/markdown": "^7.5.1",
+    "@types/node": "^26.6.6",
+    "eslint": "^9.39.4",
+    "eslint-config-metarhia": "^9.1.3",
+    "prettier": "^3.6.2"
   }
 }
