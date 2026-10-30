@@ -2,9 +2,20 @@
 
 ## [Unreleased][unreleased]
 
-- Symlink each IDE target directory (`.cursor/skills`, `.claude/skills`, and
-  the other rows) at the package skills folder, so agents load
-  `<target>/<skill-name>/SKILL.md`
+## [1.0.6][] - 2026-10-31
+
+- Added skill validation for frontmatter, context size, and relative links
+- Added agent evaluation scripts for skill selection and generated code
+- Symlinked each IDE target directory:
+  `.cursor/skills`, `.claude/skills`, and the other rows to the package
+  skills folder, so agents load `<target>/<skill-name>/SKILL.md`; migrated
+  legacy links and preserved directories containing users' own skills
+- Merged JavaScript style guidance into js-conventions and expanded examples and
+  performance guidance
+- Expanded js-gof with structural patterns and moved examples into JavaScript files
+- Updated data-structure, error-handling, and npm-publish guidance
+- Updated development dependencies
+- Removed duplicate development dependency entries from package.json
 
 ## [1.0.5][] - 2026-08-06
 
@@ -41,7 +52,8 @@
 - Autodetect IDE dirs and link skills without a menu prompt
 - Prune stale symlinks on re-run after package update
 
-[unreleased]: https://github.com/metarhia/metaskills/compare/v1.0.5...HEAD
+[unreleased]: https://github.com/metarhia/metaskills/compare/v1.0.6...HEAD
+[1.0.6]: https://github.com/metarhia/metaskills/compare/v1.0.5...v1.0.6
 [1.0.5]: https://github.com/metarhia/metaskills/compare/v1.0.4...v1.0.5
 [1.0.4]: https://github.com/metarhia/metaskills/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/metarhia/metaskills/compare/v1.0.2...v1.0.3
